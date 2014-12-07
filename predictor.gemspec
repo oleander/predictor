@@ -12,6 +12,7 @@ Gem::Specification.new do |s|
   s.licenses    = ["MIT"]
 
   s.add_dependency "redis", ">= 3.0.0"
+  s.add_dependency "progress_bar", "~> 1.0.0"
 
   s.add_development_dependency "rspec", "~> 2.14.0"
   s.add_development_dependency "rake"

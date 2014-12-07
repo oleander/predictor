@@ -9,6 +9,10 @@ module Predictor::Base
       @matrices[key] = opts
     end
 
+    def show_progress(boolean)
+      @progressbar = boolean
+    end
+
     def limit_similarities_to(val)
       @similarity_limit_set = true
       @similarity_limit     = val
@@ -29,6 +33,10 @@ module Predictor::Base
 
     def input_matrices
       @matrices
+    end
+
+    def progressbar?
+      !! @progressbar
     end
 
     def redis_prefix(prefix = nil, &block)
@@ -195,7 +203,14 @@ module Predictor::Base
   end
 
   def process_items!(*items)
-    items = items.flatten if items.count == 1 && items[0].is_a?(Array) # Old syntax
+    items_count = items.count
+    items = items.flatten if items_count == 1 && items[0].is_a?(Array) # Old syntax
+
+    if self.class.progressbar?
+      progressbar = ProgressBar.new("Processing items", items_count)
+    else
+      progressbar = Struct.new(:inc, :finish).new
+    end
 
     case self.class.get_processing_technique
     when :lua
@@ -207,6 +222,7 @@ module Predictor::Base
 
       items.each do |item|
         Predictor.process_lua_script(redis_key, matrix_json, similarity_limit, item)
+        progressbar.inc
       end
     when :union
       items.each do |item|
@@ -240,13 +256,17 @@ module Predictor::Base
             multi.zunionstore key, [key] # Rewrite zset for optimized storage.
           end
         end
+
+        progressbar.inc
       end
     else # Default to old behavior, processing things in Ruby.
       items.each do |item|
         related_items(item).each { |related_item| cache_similarity(item, related_item) }
+        progressbar.inc
       end
     end
 
+    progressbar.finish
     return self
   end
 
