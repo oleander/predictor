@@ -207,9 +207,9 @@ module Predictor::Base
     items = items.flatten if items_count == 1 && items[0].is_a?(Array) # Old syntax
 
     if self.class.progressbar?
-      progressbar = ProgressBar.new("Processing items", items_count)
+      progressbar = ProgressBar.new(items_count)
     else
-      progressbar = Struct.new(:inc, :finish).new
+      progressbar = Struct.new(:increment!).new
     end
 
     case self.class.get_processing_technique
@@ -222,7 +222,7 @@ module Predictor::Base
 
       items.each do |item|
         Predictor.process_lua_script(redis_key, matrix_json, similarity_limit, item)
-        progressbar.inc
+        progressbar.increment!
       end
     when :union
       items.each do |item|
@@ -257,16 +257,14 @@ module Predictor::Base
           end
         end
 
-        progressbar.inc
+        progressbar.increment!
       end
     else # Default to old behavior, processing things in Ruby.
       items.each do |item|
         related_items(item).each { |related_item| cache_similarity(item, related_item) }
-        progressbar.inc
+        progressbar.increment!
       end
     end
-
-    progressbar.finish
     return self
   end
 
